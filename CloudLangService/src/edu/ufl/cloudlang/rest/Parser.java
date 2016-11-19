@@ -22,6 +22,7 @@ public class Parser {
 	@GET
 	@Produces("application/json")
 	public Response parseText() throws JSONException {
+		System.out.println("In parse");
 		JSONObject json = new JSONObject();
 		json.put("testparsekey", "testparsevalue");
 		

@@ -13,16 +13,10 @@
 		<welcome-file>default.jsp</welcome-file>
 	</welcome-file-list>
 	<servlet>
-		<servlet-name>CloudLang RESTful API</servlet-name>
-		<servlet-class>edu.ufl.cloudlang.rest</servlet-class>
-		<init-param>
-			<param-name>jersey.config.server.provider.packages</param-name>
-			<param-value>com.rest.jersey2</param-value>
-		</init-param>
-		<load-on-startup>1</load-on-startup>
+		<servlet-name>javax.ws.rs.core.Application</servlet-name>
 	</servlet>
 	<servlet-mapping>
-		<servlet-name>CloudLang RESTful API</servlet-name>
-		<url-pattern>/CloudLang/*</url-pattern>
+		<servlet-name>javax.ws.rs.core.Application</servlet-name>
+		<url-pattern>/rest/*</url-pattern>
 	</servlet-mapping>
 </web-app>
