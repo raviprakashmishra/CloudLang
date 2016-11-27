@@ -7,17 +7,22 @@ import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Response;
 
+import org.apache.commons.exec.CommandLine;
+import org.apache.commons.exec.DefaultExecutor;
+import org.glassfish.jersey.client.ClientConfig;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -45,23 +50,18 @@ public class Parser {
 	public Response parseTextWithInput(@PathParam("text") String text) throws JSONException {
 		System.out.println("Input Text :: " + text);
 		
-		FileOutputStream fileOutputStream = null;
-		File file = null;
+		String inputPath = "/home/sayak/Workspace/nndep-torch7/input.txt";
+		BufferedWriter inputWriter = null;
+		String line = null;
 		try {
-			file = new File("input.txt");
-			fileOutputStream = new FileOutputStream(file);
-			if(!file.exists()) {
-				file.createNewFile();
-			}
-			byte[] inputInBytes = text.getBytes();
-			fileOutputStream.write(inputInBytes);
-			fileOutputStream.flush();
+			inputWriter = new BufferedWriter(new FileWriter(new File(inputPath)));
+			inputWriter.write(text);
 		} catch (IOException ie) {
 			ie.printStackTrace();
 		} finally {
-			if(fileOutputStream != null) {
+			if(inputWriter != null) {
 				try {
-					fileOutputStream.close();
+					inputWriter.close();
 				} catch (IOException ie2) {
 					ie2.printStackTrace();
 				}
@@ -81,7 +81,7 @@ public class Parser {
 		String command = "java -mx200m -cp " + stanfordParserPath + " " 
 							+ lexicalParserClassName 
 							+ " -retainTMPSubcategories -outputFormat " + outputFormat + " " 
-							+ lexicalModel + " " + "input.txt";
+							+ lexicalModel + " " + inputPath;
 		Process process = null;
 		String log = null;
 		BufferedReader stdInput = null;
@@ -89,6 +89,7 @@ public class Parser {
 		try {
 			System.out.println("Will execute command " + command);
 			process = Runtime.getRuntime().exec(command);
+			process.waitFor();
 			if(process != null) {
 				stdInput = new BufferedReader(new InputStreamReader(process.getInputStream()));
 				stdOutput = new BufferedWriter(new FileWriter(outputPath));
@@ -103,6 +104,8 @@ public class Parser {
 				stdOutput.close();
 			}
 		} catch (IOException ie) {
+			ie.printStackTrace();
+		} catch (InterruptedException ie) {
 			ie.printStackTrace();
 		} finally {
 			if(stdInput != null) {
@@ -130,6 +133,7 @@ public class Parser {
 						+ " -maxLength 100 -basic -conllx -treeFile " +  outputPath;
 			System.out.println("Will execute command " + command);
 			process2 = Runtime.getRuntime().exec(command);
+			process2.waitFor();
 			stdInput2 = new BufferedReader(new InputStreamReader(process2.getInputStream()));
 			stdOutput2 = new BufferedWriter(new FileWriter(outputDependenciesPath));
 			System.out.println("Process logs :: ");
@@ -142,6 +146,8 @@ public class Parser {
 			stdInput2.close();
 			stdOutput2.close();
 		} catch (IOException ie) {
+			ie.printStackTrace();
+		} catch (InterruptedException ie) {
 			ie.printStackTrace();
 		} finally {
 			if(stdInput2 != null) {
@@ -161,26 +167,22 @@ public class Parser {
 			}
 		}
 		
-		try {
-			command = "optirun th " + dependencyParserPath + " --rootLabel 'ROOT' --modelPath " + dependencyModelPath 
-						+ " --input " + outputDependenciesPath + " --output " + finalParseTreePath + " --cuda";
-			
-			System.out.println("Will execute command " + command);
-			Runtime.getRuntime().exec("/home/sayak/torch/install/bin/torch-activate");
-			Runtime.getRuntime().exec("/bin/sh -c " + "\"" + command + "\"");
-		} catch (IOException ie) {
-			ie.printStackTrace();
-		}
-		System.out.println("Executed model");
 		JSONObject json =  new JSONObject();
 		json.put("inputText", text);
+		
+		Client client = ClientBuilder.newClient(new ClientConfig());
+		String entity = client.target("http://localhost:8888").path("parse").request().get(String.class);
+		System.out.println("entity " + entity);
+		
 		StringBuilder parsedJSON = null;
 		BufferedReader inputReader = null;
-		String line = null;
+		line = null;
 		try {
+			System.out.println("Reading file");
 			inputReader = new BufferedReader(new FileReader(new File(finalParseTreePath)));
 			parsedJSON = new StringBuilder();
 			while((line = inputReader.readLine()) != null) {
+				System.out.println(line);
 				parsedJSON.append(line);
 				parsedJSON.append("\n");
 			}
