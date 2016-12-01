@@ -6,11 +6,12 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>Bootstrap 101 Template</title>
+    <title>CloudLang Demo</title>
 
     <!-- Bootstrap -->
     <link href="bootstrap/css/bootstrap.min.css" rel="stylesheet">
     <link href="css/styles.css" rel="stylesheet">
+    <link href="css/tree.css" rel="stylesheet">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -45,8 +46,19 @@
                 <button type="button" class="btn btn-success btn-md" onclick="submitTextForNLP()">Submit</button>
             </div>
         </div>
-        <div class="row">
-
+        <div class="row" id="parseRow" style="display: none;">
+            <h4><span class="label label-success">Parse Tree</span></h4>
+            <svg id="svgElement" style="padding: 20px;"></svg>
+        </div>
+        <div class="row" id="entityRow" style="display: none;">
+            <h4><span class="label label-success">Entities</span></h4>
+            <div id="entityElement" class="entities"></div>
+        </div>
+        <div class="row" id="sentimentRow" style="display: none;">
+            <h4><span class="label label-success">Sentiment</span></h4>
+        </div>
+        <div class="row" id="loadingRow" style="display: none;">
+            <h4><span class="label label-default">Loading...</span></h4>
         </div>
     </div>
 
@@ -54,6 +66,8 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
     <!-- Include all compiled plugins (below), or include individual files as needed -->
     <script src="bootstrap/js/bootstrap.min.js"></script>
+    <script src="js/d3.js"></script>
+    <script src="js/dependency-tree.js"></script>
     <script src="js/scripts.js"></script>
 </body>
 

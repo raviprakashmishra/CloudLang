@@ -27,8 +27,7 @@ public class SentimentAnalyzer {
 		JSONObject json = new JSONObject();
 		json.put("testsentimentkey", "testsentimentvalue");
 		
-		String result = "@Produces(\"application/json\") Output: \n\n Parse result: \n\n" + json;
-		return Response.status(200).entity(result).build();
+		return Response.status(200).entity(json.toString()).build();
 	}
 	
 	@Path("{text}")
@@ -48,7 +47,6 @@ public class SentimentAnalyzer {
 		JSONObject json =  new JSONObject();
 		json.put("input text", text);
 		
-		String result = "@Produces(\"application/json\") Output: \n\n Parse result: \n\n" + json;
-		return Response.status(200).entity(result).build();
+		return Response.status(200).entity(json.toString()).build();
 	}
 }

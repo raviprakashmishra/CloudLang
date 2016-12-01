@@ -34,8 +34,7 @@ public class NamedEntityRecognizer {
 		JSONObject json = new JSONObject();
 		json.put("testentitykey", "testentityvalue");
 		
-		String result = "@Produces(\"application/json\") Output: \n\n Parse result: \n\n" + json;
-		return Response.status(200).entity(result).build();
+		return Response.status(200).entity(json.toString()).build();
 	}
 	
 	@Path("{text}")
@@ -104,7 +103,6 @@ public class NamedEntityRecognizer {
 		}
 		json.put("nerResult", nerJSON.toString());
 		
-		String result = "@Produces(\"application/json\") Output: \n\n Parse result: \n\n" + json;
-		return Response.status(200).entity(result).build();
+		return Response.status(200).entity(json.toString()).build();
 	}
 }

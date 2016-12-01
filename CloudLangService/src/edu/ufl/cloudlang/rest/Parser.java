@@ -20,8 +20,6 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.Response;
 
-import org.apache.commons.exec.CommandLine;
-import org.apache.commons.exec.DefaultExecutor;
 import org.glassfish.jersey.client.ClientConfig;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -40,8 +38,7 @@ public class Parser {
 		JSONObject json = new JSONObject();
 		json.put("testparsekey", "testparsevalue");
 		
-		String result = "@Produces(\"application/json\") Output: \n\n Parse result: \n\n" + json;
-		return Response.status(200).entity(result).build();
+		return Response.status(200).entity(json.toString()).build();
 	}
 	
 	@Path("{text}")
@@ -75,8 +72,6 @@ public class Parser {
 		String lexicalModel = "/home/sayak/Workspace/nndep-torch7/englishPCFG.ser.gz";
 		String outputPath = "/home/sayak/Workspace/nndep-torch7/output.mrg";
 		String outputDependenciesPath = "/home/sayak/Workspace/nndep-torch7/output.mrg.dep";
-		String dependencyParserPath = "/home/sayak/Workspace/nndep-torch7/dep/parse.lua";
-		String dependencyModelPath = "/home/sayak/Workspace/nndep-torch7/model.th7";
 		String finalParseTreePath = "/home/sayak/Workspace/nndep-torch7/output.conll";
 		String command = "java -mx200m -cp " + stanfordParserPath + " " 
 							+ lexicalParserClassName 
@@ -201,7 +196,6 @@ public class Parser {
 		}
 		json.put("parsedResult", parsedJSON);
 		
-		String result = "@Produces(\"application/json\") Output: \n\n Parse result: \n\n" + json;
-		return Response.status(200).entity(result).build();
+		return Response.status(200).entity(json.toString()).build();
 	}
 }
