@@ -14,10 +14,11 @@ import theano.tensor as tensor
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 
 import imdb
+import process_input
+import sys
+
 
 datasets = {'imdb': (imdb.load_data, imdb.prepare_data)}
-
-
 SEED = 123
 numpy.random.seed(SEED)
 
@@ -26,7 +27,8 @@ def numpy_floatX(data):
 
 
 def get_minibatches_idx(n, minibatch_size, shuffle=False):
-  
+   
+
     idx_list = numpy.arange(n, dtype="int32")
 
     if shuffle:
@@ -50,13 +52,13 @@ def get_dataset(name):
 
 
 def zipp(params, tparams):
-   
+    
     for kk, vv in params.items():
         tparams[kk].set_value(vv)
 
 
 def unzip(zipped):
-   
+    
     new_params = OrderedDict()
     for kk, vv in zipped.items():
         new_params[kk] = vv.get_value()
@@ -191,8 +193,28 @@ def lstm_layer(tparams, state_below, options, prefix='lstm', mask=None):
 layers = {'lstm': (param_init_lstm, lstm_layer)}
 
 
-def adadelta(lr, tparams, grads, x, mask, y, cost):
+def sgd(lr, tparams, grads, x, mask, y, cost):
+    
    
+    gshared = [theano.shared(p.get_value() * 0., name='%s_grad' % k)
+               for k, p in tparams.items()]
+    gsup = [(gs, g) for gs, g in zip(gshared, grads)]
+
+   
+    f_grad_shared = theano.function([x, mask, y], cost, updates=gsup,
+                                    name='sgd_f_grad_shared')
+
+    pup = [(p, p - lr * g) for p, g in zip(tparams.values(), gshared)]
+
+   
+    f_update = theano.function([lr], [], updates=pup,
+                               name='sgd_f_update')
+
+    return f_grad_shared, f_update
+
+
+def adadelta(lr, tparams, grads, x, mask, y, cost):
+    
 
     zipped_grads = [theano.shared(p.get_value() * numpy_floatX(0.),
                                   name='%s_grad' % k)
@@ -227,10 +249,11 @@ def adadelta(lr, tparams, grads, x, mask, y, cost):
 
 
 
+
+
 def build_model(tparams, options):
     trng = RandomStreams(SEED)
 
-    # Used for dropout.
     use_noise = theano.shared(numpy_floatX(0.))
 
     x = tensor.matrix('x', dtype='int64')
@@ -267,7 +290,7 @@ def build_model(tparams, options):
 
 
 def pred_probs(f_pred_prob, prepare_data, data, iterator, verbose=False):
-  
+    
     n_samples = len(data[0])
     probs = numpy.zeros((n_samples, 2)).astype(config.floatX)
 
@@ -281,8 +304,7 @@ def pred_probs(f_pred_prob, prepare_data, data, iterator, verbose=False):
         probs[valid_index, :] = pred_probs
 
         n_done += len(valid_index)
-        if verbose:
-            print('%d/%d samples classified' % (n_done, n_samples))
+        
 
     return probs
 
@@ -302,37 +324,35 @@ def pred_error(f_pred, prepare_data, data, iterator, verbose=False):
     return valid_err
 
 
-def lstm_training(
-    dim_proj=128,  # dimension of word embedding 
-    patience=50,  # stop after patience, if there is no improvement in modek 
-    max_epochs=90,  # epochs to train for
-    dispFreq=10,  #
+def train_lstm(
+    dim_proj=128,  
+    patience=10,  
+    max_epochs=5000, 
+    dispFreq=10,  
     decay_c=0.,  
-    lrate=0.0001,  # Learning rate 
-    n_words=10000,  # Vocabulary size
-    optimizer=adadelta, 
-    encoder='lstm', 
-    saveto='lstm_model.npz',  # model will be saved here
-    validFreq=370, 
+    lrate=0.0001,
+    n_words=10000, 
+    optimizer=adadelta,
+    encoder='lstm',  
+    saveto='lstm_model.npz',
+    validFreq=370,  
     saveFreq=1110,  
-    maxlen=100, 
-    batch_size=16,  
-    valid_batch_size=64, 
+    maxlen=100,  
+    batch_size=16, 
+    valid_batch_size=64,
     dataset='imdb',
 
     noise_std=0.,
-    use_dropout=True,  
-    reload_model=None,  
-    test_size=-1,  #  keep only this number of test example.
+    use_dropout=True, 
+                      
+    reload_model=None,
+    test_size=-1,  
 ):
 
-    # Model options
     model_options = locals().copy()
-    print("model ", model_options)
 
     load_data, prepare_data = get_dataset(dataset)
 
-    print('Loading ')
     train, valid, test = load_data(n_words=n_words, valid_portion=0.05,
                                    maxlen=maxlen)
     if test_size > 0:
@@ -346,18 +366,19 @@ def lstm_training(
 
     model_options['ydim'] = ydim
 
-    print('Building model')
    
     params = init_params(model_options)
 
     if reload_model:
         load_params('lstm_model.npz', params)
 
-   
+    
     tparams = init_tparams(params)
 
     (use_noise, x, mask,
      y, f_pred_prob, f_pred, cost) = build_model(tparams, model_options)
+
+
 
     if decay_c > 0.:
         decay_c = theano.shared(numpy_floatX(decay_c), name='decay_c')
@@ -375,12 +396,11 @@ def lstm_training(
     f_grad_shared, f_update = optimizer(lr, tparams, grads,
                                         x, mask, y, cost)
 
-    print('Optimization')
 
     kf_valid = get_minibatches_idx(len(valid[0]), valid_batch_size)
     kf_test = get_minibatches_idx(len(test[0]), valid_batch_size)
 
-   
+
     history_errs = []
     best_p = None
     bad_count = 0
@@ -390,8 +410,8 @@ def lstm_training(
     if saveFreq == -1:
         saveFreq = len(train[0]) // batch_size
 
-    uidx = 0  # the number of update done
-    estop = False  # early stop
+    uidx = 0  
+    estop = False 
     start_time = time.time()
     try:
         for eidx in range(max_epochs):
@@ -406,9 +426,7 @@ def lstm_training(
                 y = [train[1][t] for t in train_index]
                 x = [train[0][t]for t in train_index]
 
-                if uidx == 1:
-                    print (x,y)
-               
+              
                 x, mask, y = prepare_data(x, y)
                 n_samples += x.shape[1]
 
@@ -416,22 +434,18 @@ def lstm_training(
                 f_update(lrate)
 
                 if numpy.isnan(cost) or numpy.isinf(cost):
-                    print('bad cost detected: ', cost)
                     return 1., 1., 1.
 
-                if numpy.mod(uidx, dispFreq) == 0:
-                    print('Epoch ', eidx, 'Update ', uidx, 'Cost ', cost)
+                
 
                 if saveto and numpy.mod(uidx, saveFreq) == 0:
-                    print('Saving...')
-
                     if best_p is not None:
                         params = best_p
                     else:
                         params = unzip(tparams)
+
                     numpy.savez(saveto, history_errs=history_errs, **params)
                     pickle.dump(model_options, open('%s.pkl' % saveto, 'wb'), -1)
-                    print('Done')
 
                 if numpy.mod(uidx, validFreq) == 0:
                     use_noise.set_value(0.)
@@ -449,25 +463,22 @@ def lstm_training(
                         best_p = unzip(tparams)
                         bad_counter = 0
 
-                    print('Train ', train_err, 'Valid ', valid_err,
-                           'Test ', test_err)
+                    
 
                     if (len(history_errs) > patience and
                         valid_err >= numpy.array(history_errs)[:-patience,
                                                                0].min()):
                         bad_counter += 1
                         if bad_counter > patience:
-                            print('Early Stop!')
                             estop = True
                             break
 
-            print('Seen %d samples' % n_samples)
 
             if estop:
                 break
 
     except KeyboardInterrupt:
-        print("Training interupted")
+        pass
 
     end_time = time.time()
     if best_p is not None:
@@ -481,42 +492,69 @@ def lstm_training(
     valid_err = pred_error(f_pred, prepare_data, valid, kf_valid)
     test_err = pred_error(f_pred, prepare_data, test, kf_test)
 
-    print( 'Train ', train_err, 'Valid ', valid_err, 'Test ', test_err )
     if saveto:
         numpy.savez(saveto, train_err=train_err,
                     valid_err=valid_err, test_err=test_err,
                     history_errs=history_errs, **best_p)
-    print('The code run for %d epochs, with %f sec/epochs' % (
-        (eidx + 1), (end_time - start_time) / (1. * (eidx + 1))))
-    print( ('Training took %.1fs' %
-            (end_time - start_time)), file=sys.stderr)
-    return train_err, valid_err, test_err,f_pred_prob
+    return train_err, valid_err, test_err,f_pred
+
+
+def get_predictor():
+    model_options = locals().copy()
+
+    load_data, prepare_data = get_dataset('imdb')
+
+    train, valid, test = load_data(n_words=n_words, valid_portion=0.05,
+                                   maxlen=maxlen)
+    if test_size > 0:
+        
+        idx = numpy.arange(len(test[0]))
+        numpy.random.shuffle(idx)
+        idx = idx[:test_size]
+        test = ([test[0][n] for n in idx], [test[1][n] for n in idx])
+
+    ydim = numpy.max(train[1]) + 1
+
+    model_options['ydim'] = ydim
+
+   
+    params = init_params(model_options)
+
+    load_params('lstm_model.npz', params)
+
+    
+    tparams = init_tparams(params)
+
+    (use_noise, x, mask,
+     y, f_pred_prob, f_pred, cost) = build_model(tparams, model_options)
+
+    return f_pred
+
 
 
 if __name__ == '__main__':
-    
-    _, _, _, f_pred_prob = lstm_training(
+    _,_,_,f_pred = train_lstm(
         max_epochs=1,
         test_size=500,
         saveto='lstm_model.npz',
-        reload_model=True
+        reload_model=True,
+
     )
 
-    review = 'this movie is not good'
-    data = ([review],[0])
+    #f_pred = get_predictor()
+    review = sys.argv[1]
+    x = process_input.build_vector(review)
+    y= [0]
     
-    kf = get_minibatches_idx(len(data[0]), 1)
+    
     probs = []
+    x,mask,y=imdb.prepare_data(x,y)
 
-    for _, train_index in kf:               
+    preds = f_pred(x, mask)
 
-        y = [data[1][t] for t in train_index]
-        x = [data[0][t]for t in train_index]
-
-      
-       
-        probs = pred_probs(f_pred_prob,imdb.prepare_data(x,y),data,kf)
-
-   
     
-    print (probs[0])
+    if preds[0] == 1:
+        print ('positive')
+
+    else:
+        print ('negative')
