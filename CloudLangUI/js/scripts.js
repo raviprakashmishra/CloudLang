@@ -11,7 +11,7 @@ function submitTextForNLP() {
             console.log("parse response", JSON.parse(this.responseText));
             var depTree = drawTree(document.getElementById("svgElement"), JSON.parse(this.responseText).parsedResult);
             console.log("depTree", depTree);
-            if($("#entityRow").is(":visible") /*&& $("#sentimentRow").is(":visible")*/) {
+            if($("#entityRow").is(":visible") && $("#sentimentRow").is(":visible")) {
                 $("#loadingRow").hide(300);
             }
             $("#parseRow").show(400);
@@ -45,7 +45,7 @@ function submitTextForNLP() {
             }
             console.log("resultString", resultString);
             document.getElementById("entityElement").innerHTML = resultString;
-            if($("#parseRow").is(":visible") /*&& $("#sentimentRow").is(":visible")*/) {
+            if($("#parseRow").is(":visible") && $("#sentimentRow").is(":visible")) {
                 $("#loadingRow").hide(300);
             }
             $("#entityRow").show(400);
@@ -53,4 +53,20 @@ function submitTextForNLP() {
     };
     xhttp2.open("GET", "http://localhost:8080/CloudLangService/rest/entities/" + inputText, true);
     xhttp2.send();
+
+    var xhttp3 = new XMLHttpRequest();
+    xhttp3.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            console.log("sentiment response", JSON.parse(this.responseText));
+            var sentimentResult = JSON.parse(this.responseText).sentimentResult;
+            console.log("sentimentResult", sentimentResult);
+            $("#sentimentElement").html("This sentence seems to have a " + sentimentResult + " sentiment.");
+            if($("#entityRow").is(":visible") && $("#parseRow").is(":visible")) {
+                $("#loadingRow").hide(300);
+            }
+            $("#sentimentRow").show(400);
+        }
+    };
+    xhttp3.open("GET", "http://localhost:8080/CloudLangService/rest/sentiment/" + inputText, true);
+    xhttp3.send();
 }

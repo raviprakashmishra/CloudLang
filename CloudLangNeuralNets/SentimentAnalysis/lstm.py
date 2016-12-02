@@ -17,6 +17,9 @@ import imdb
 import process_input
 import sys
 
+from flask import Flask
+
+app = Flask(__name__)
 
 datasets = {'imdb': (imdb.load_data, imdb.prepare_data)}
 SEED = 123
@@ -531,18 +534,19 @@ def get_predictor():
     return f_pred
 
 
-
-if __name__ == '__main__':
+@app.route('/sentiment/<review_text>', methods=['GET'])
+def get_sentiment(review_text):
     _,_,_,f_pred = train_lstm(
         max_epochs=1,
         test_size=500,
         saveto='lstm_model.npz',
-        reload_model=True,
+        reload_model=False,
 
     )
 
     #f_pred = get_predictor()
-    review = sys.argv[1]
+    #review = sys.argv[1]
+    review = review_text
     x = process_input.build_vector(review)
     y= [0]
     
@@ -552,9 +556,18 @@ if __name__ == '__main__':
 
     preds = f_pred(x, mask)
 
-    
+    output_file = open('output.txt', 'w')
     if preds[0] == 1:
         print ('positive')
+        output_file.write('positive')
+        output_file.close()
+        return 'positive'
 
     else:
         print ('negative')
+        output_file.write('positive')
+        output_file.close()
+        return 'negative'
+
+if __name__ == '__main__':
+    app.run(debug=True)
